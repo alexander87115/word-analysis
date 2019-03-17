@@ -1,0 +1,102 @@
+import xlrd
+import math
+#刪除重複的部分
+data = xlrd.open_workbook('d.xls')
+tai = data.sheet_by_index(2)
+#找到台積電的sheet
+cn1 = tai.col_values(0)
+cn2 = tai.col_values(1)
+n = []
+b = []
+for item in cn2:
+    word = item[0:150]
+    #前150字只要有部分不一樣的就算不一樣的文章
+    if word not in n:
+        n.append(word)
+        b.append(cn2.index(item))
+    else:
+        continue
+    #記錄不一樣的文章編號
+del n
+    
+import pandas as pd
+x = pd.read_pickle('list3.pkl')
+word_lst = [] 
+word_dict = {}
+w_dict = {}
+for item in range(len(x)):
+    a = []
+    if item in b:
+        for item2 in x[item]:
+            word_dict[item2] = word_dict.get(item2, 0) + 1
+            #紀錄主題TF值
+            if item2 not in a:
+                w_dict[item2] = w_dict.get(item2, 0) + 1
+                a.append(item2)
+            #紀錄主題DF值
+#print(' 名稱  TF   DF')
+finale_list = []
+for key in word_dict:
+    if word_dict[key] >= 300:
+        finale_list.append([key, word_dict[key], w_dict[key]])
+    #節省空間只留下主題TF>300的項目轉成[名稱, TF, DF]的型態
+del word_dict
+del w_dict
+del x
+
+data = xlrd.open_workbook('hw1_table.xlsx')
+#從教授給的hw_table中直接抓取全部2gram 和全部3gram的TF和DF值
+gram2 = data.sheet_by_index(0)
+gram3 = data.sheet_by_index(1)
+
+cn2 = gram2.col_values(1)
+cn3 = gram3.col_values(1)
+
+ct2 = gram2.col_values(2)
+ct3 = gram3.col_values(2)
+
+cd2 = gram2.col_values(3)
+cd3 = gram3.col_values(3)
+nval = 0
+
+
+doc = len(b)
+#找到finale_list中各詞對應在全部2gram 和全部3gram的TF和DF值
+for n in finale_list:
+    try :
+        nval = cn2.index(n[0])
+        n.append(ct2[nval])
+        n.append(cd2[nval])
+    except ValueError:
+        try:
+            nval = cn3.index(n[0])
+            n.append(ct3[nval])
+            n.append(cd3[nval])
+        except ValueError:
+            continue
+    #形成[名稱, 主題TF, 主題DF, 全體TF, 全體DF]
+    #進行調整避免主題TF >全體TF
+    if n[1] > n[3]:
+        n[1] = n[3]
+    #計算主題TF-IDF
+    #計算MI
+    tfidf = (1 + math.log(n[1])) * math.log(doc/n[2])
+    tfidf = int(tfidf * 100)/100
+    mi = math.log(n[2]/(n[4] * doc))
+    mi = int(mi * 100)/100
+    n.append(tfidf)
+    n.append(mi)
+    n.append(int(tfidf * mi * 100)/100)
+
+x = [0,1,2,3,4,5,6,7]
+
+#生成xls檔
+from xlwt import *
+file = Workbook(encoding = 'utf-8')
+table = file.add_sheet('data')
+for i in range(len(finale_list)):
+    for j in x:
+        table.write(i, j,finale_list[i][j] )
+file.save('data.xlsx')
+
+
